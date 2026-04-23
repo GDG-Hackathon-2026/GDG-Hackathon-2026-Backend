@@ -3,6 +3,21 @@
 > **읽는 사람**: GDG-Hackathon-2026-Front 리포에서 작업하는 Claude Code 세션 또는 팀원.
 > **이전 버전 차이**: v1은 백엔드 compose에 프론트 서비스를 합치는 "통합 compose" 전략이었으나, 오너십이 꼬여 폐기됨. 이 v2는 **두 리포가 각자 compose를 갖고 Docker 외부 네트워크 `shared` 로만 연결하는 분리 구조**.
 
+## 📣 프론트 세션에게 (핸드오프 요약)
+
+백엔드 측에서 이미 다음을 완료했으니, 프론트 세션은 **섹션 3 파일 작업 → 섹션 4 체크리스트 → 섹션 5 검증** 순서로만 진행하면 된다:
+
+- [x] EC2 에 외부 Docker 네트워크 `shared` 생성 완료
+- [x] 기존 백엔드 스택 4개 서비스 전부 `shared` 네트워크로 이관·재기동 완료 (확인: `docker compose ps`)
+- [x] Spring Boot 에 `CorsConfig.java` 추가 완료 — `http://3.39.235.46:3001` 오리진 허용
+- [x] EC2 에 `~/app-web/` 디렉토리 + `.env` (`DOCKERHUB_USERNAME=jiseong02`) 사전 생성 완료 (권한 600)
+- [x] 보안 그룹 3001/tcp 이미 오픈
+- [x] Docker Hub `jiseong02/gdg-2026-frontend:latest` 이미지 업로드 상태 확인됨
+
+즉 프론트 세션이 건드려야 할 범위는 **프론트 리포 내부 파일 3개**(추가/수정)뿐이다. EC2 에 SSH 로 들어갈 필요 없다. 상세는 섹션 3 참조.
+
+이전 프론트 workflow 의 deploy job (`docker compose pull web && up -d --no-deps web`) 은 통합 compose 전제였기에 **동작하지 않는다** — 섹션 3-C 의 새 deploy job 으로 교체 필수.
+
 ---
 
 ## 1. 이미 구축된 인프라 (재사용 자산)
@@ -104,29 +119,28 @@ EC2 `~/app-web/.env` 파일을 직접 생성 (아래 3-D 참조). 커밋 금지.
 - 과거: `docker compose pull web && up -d --no-deps web` (백엔드 compose 재사용)
 - 현재: `docker compose pull && up -d` (프론트 전용 compose, 서비스 1개)
 
-### 3-D. EC2 초기 세팅 (최초 1회만, 프론트 배포 전)
+### 3-D. EC2 초기 세팅 — ✅ 완료됨 (프론트 세션은 건드릴 필요 없음)
+
+백엔드 세션이 사전에 `~/app-web/` + `.env` (권한 600, `DOCKERHUB_USERNAME=jiseong02`) 를 이미 생성해둠. 확인하고 싶으면:
 
 ```bash
-ssh Lion-2026gdg 'mkdir -p ~/app-web && cat > ~/app-web/.env <<EOF
-DOCKERHUB_USERNAME=jiseong02
-EOF
-chmod 600 ~/app-web/.env'
+ssh Lion-2026gdg 'ls -la ~/app-web/ && cat ~/app-web/.env'
 ```
 
-**이 단계 안 하면** 프론트 첫 배포 시 workflow 의 가드("ERROR: .env not found")에 막혀 실패.
+나중에 값 추가·수정이 필요하면 (예: 새 env var) SSH 로 직접 편집.
 
 ---
 
 ## 4. 작업 순서 체크리스트
 
-차기 세션이 순서대로 진행:
+프론트 세션이 순서대로 진행 (EC2 세팅은 이미 끝났으므로 **리포 내부 파일만 건드린다**):
 
-- [ ] EC2 `~/app-web/` 디렉토리 + `.env` 생성 (3-D)
 - [ ] 프론트 리포 루트에 `docker-compose.yml` 추가 (3-A)
+- [ ] 프론트 리포 루트에 `.env.example` 추가 (3-B) — 커밋용, 로컬/EC2 `.env` 는 별개
 - [ ] 프론트 리포의 `.github/workflows/deploy.yml` 의 `deploy` job 교체 (3-C)
 - [ ] 프론트 리포 main 에 push → Actions 성공 확인
 - [ ] EC2 에서 `docker ps | grep gdg-web` 으로 컨테이너 기동 확인
-- [ ] 브라우저 `http://3.39.235.46:3001` → 페이지 렌더링 + DevTools 에서 API 호출 200
+- [ ] 브라우저 `http://3.39.235.46:3001` → 페이지 렌더링 + DevTools Network 탭에서 API 호출 200 (CORS 에러 없음)
 
 ## 5. 검증
 
