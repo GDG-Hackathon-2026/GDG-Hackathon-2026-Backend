@@ -2,6 +2,7 @@ package com.moggo._gdg.controller;
 
 import com.moggo._gdg.domain.Conversation;
 import com.moggo._gdg.service.ChatService;
+import com.moggo._gdg.web.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -149,13 +150,21 @@ public class ChatController {
                                     """)
                     )
             ),
-            @ApiResponse(responseCode = "400", description = "content 가 비어있거나 공백"),
-            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "400",
+                    description = "content 가 비어있거나 공백, 또는 JSON body 파싱 실패 (code=VALIDATION)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401",
+                    description = "인증 토큰 누락 또는 검증 실패 (code=AUTH)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "402",
-                    description = "녹아내림 stage 5 도달 — 탄소 예산 소진, 더 이상 LLM 호출 불가"),
-            @ApiResponse(responseCode = "404", description = "대화가 없거나 다른 사용자 소유"),
-            @ApiResponse(responseCode = "500",
-                    description = "Gemini API 오류 (일시적 또는 쿼터 초과). 재시도 권장")
+                    description = "녹아내림 stage 5 도달 — 탄소 예산 소진, 더 이상 LLM 호출 불가 (code=MELTED)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404",
+                    description = "대화가 없거나 다른 사용자 소유 (code=NOT_FOUND)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "502",
+                    description = "Vertex AI 호출 실패 — 빌링 / 쿼터 / 일시적 오류. 재시도 권장 (code=GEMINI_UPSTREAM)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ChatService.SendResult send(
             @Parameter(hidden = true) @AuthenticationPrincipal String uid,

@@ -2,6 +2,7 @@ package com.moggo._gdg.config;
 
 import com.moggo._gdg.security.DevAuthFilter;
 import com.moggo._gdg.security.FirebaseTokenFilter;
+import com.moggo._gdg.security.JsonAuthEntryPoint;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,7 +28,8 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http,
                                     ObjectProvider<FirebaseTokenFilter> firebaseFilterProvider,
-                                    ObjectProvider<DevAuthFilter> devAuthFilterProvider) throws Exception {
+                                    ObjectProvider<DevAuthFilter> devAuthFilterProvider,
+                                    JsonAuthEntryPoint jsonAuthEntryPoint) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(httpBasic -> httpBasic.disable())
@@ -35,6 +37,10 @@ public class SecurityConfig {
                 .logout(logout -> logout.disable())
                 .cors(cors -> {})
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jsonAuthEntryPoint)
+                        .accessDeniedHandler(jsonAuthEntryPoint)
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
