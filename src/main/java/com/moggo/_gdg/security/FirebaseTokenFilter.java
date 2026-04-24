@@ -35,15 +35,8 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        String path = request.getRequestURI();
         String header = request.getHeader("Authorization");
-        if (header == null || header.isBlank()) {
-            log.warn("AUTH-MISS {} {} — no Authorization header", request.getMethod(), path);
-        } else if (!header.startsWith("Bearer ")) {
-            log.warn("AUTH-BAD {} {} — header does not start with 'Bearer '. value starts with: '{}'",
-                    request.getMethod(), path,
-                    header.substring(0, Math.min(8, header.length())));
-        } else {
+        if (header != null && header.startsWith("Bearer ")) {
             String idToken = header.substring(7);
             try {
                 FirebaseToken decoded = firebaseAuth.verifyIdToken(idToken);
@@ -53,12 +46,14 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
                         AuthorityUtils.NO_AUTHORITIES
                 );
                 SecurityContextHolder.getContext().setAuthentication(auth);
-                log.info("AUTH-OK {} {} uid={}", request.getMethod(), path, decoded.getUid());
             } catch (FirebaseAuthException e) {
-                log.warn("AUTH-FAIL {} {} — verifyIdToken failed: code={} msg={}",
-                        request.getMethod(), path, e.getAuthErrorCode(), e.getMessage());
+                // 실제 잘못된 토큰이 날아오는 경우만 WARN — 디버깅 시 바로 보이게.
+                log.warn("Firebase token verification failed on {} {} — code={} msg={}",
+                        request.getMethod(), request.getRequestURI(),
+                        e.getAuthErrorCode(), e.getMessage());
             }
         }
+        // 헤더 자체가 없거나 Bearer 가 아니면 조용히 통과 (Spring Security 가 authorize 단계에서 403 처리)
         chain.doFilter(request, response);
     }
 }
