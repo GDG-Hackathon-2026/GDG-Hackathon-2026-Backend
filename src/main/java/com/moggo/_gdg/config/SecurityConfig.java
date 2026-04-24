@@ -1,5 +1,6 @@
 package com.moggo._gdg.config;
 
+import com.moggo._gdg.security.DevAuthFilter;
 import com.moggo._gdg.security.FirebaseTokenFilter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
@@ -26,7 +27,8 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http,
-                                    ObjectProvider<FirebaseTokenFilter> firebaseFilterProvider) throws Exception {
+                                    ObjectProvider<FirebaseTokenFilter> firebaseFilterProvider,
+                                    ObjectProvider<DevAuthFilter> devAuthFilterProvider) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -43,6 +45,16 @@ public class SecurityConfig {
         FirebaseTokenFilter firebaseFilter = firebaseFilterProvider.getIfAvailable();
         if (firebaseFilter != null) {
             http.addFilterBefore(firebaseFilter, UsernamePasswordAuthenticationFilter.class);
+        }
+
+        // dev/local 프로파일 전용 우회 필터 — Firebase 이후에 돌아서 실제 토큰이 우선
+        DevAuthFilter devAuthFilter = devAuthFilterProvider.getIfAvailable();
+        if (devAuthFilter != null) {
+            if (firebaseFilter != null) {
+                http.addFilterAfter(devAuthFilter, FirebaseTokenFilter.class);
+            } else {
+                http.addFilterBefore(devAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            }
         }
 
         return http.build();

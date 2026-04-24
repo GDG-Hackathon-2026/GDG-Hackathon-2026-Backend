@@ -50,3 +50,9 @@ carbon:
 chat:
   prompt:
     active-template: ${CHAT_PROMPT_TEMPLATE:polar-bear}
+
+# 개발·테스트 전용 Firebase 인증 우회.
+# true 일 때만 X-Dev-Uid 헤더를 받아 그 값을 uid 로 세팅. 실배포 기본은 false.
+dev:
+  auth:
+    bypass: ${DEV_AUTH_BYPASS:false}
