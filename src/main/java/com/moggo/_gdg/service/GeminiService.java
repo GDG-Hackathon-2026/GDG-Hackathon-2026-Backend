@@ -20,15 +20,18 @@ public class GeminiService {
     private final String model;
     private final float temperature;
     private final float topP;
+    private final int maxOutputTokens;
 
     public GeminiService(Client client,
                          @Value("${gemini.model:gemini-2.5-flash}") String model,
                          @Value("${gemini.temperature:1.2}") float temperature,
-                         @Value("${gemini.top-p:0.95}") float topP) {
+                         @Value("${gemini.top-p:0.95}") float topP,
+                         @Value("${gemini.max-output-tokens:8192}") int maxOutputTokens) {
         this.client = client;
         this.model = model;
         this.temperature = temperature;
         this.topP = topP;
+        this.maxOutputTokens = maxOutputTokens;
     }
 
     /** 단순 prompt → text. Ping/테스트용 (system prompt 없음, 모델 기본 파라미터). */
@@ -40,12 +43,11 @@ public class GeminiService {
     /**
      * 멀티턴 대화: role 이 부여된 Content 목록을 그대로 Gemini 에 전달.
      * 리스트 마지막은 이번에 보낼 user 턴이어야 한다.
+     * 출력 길이는 설정값 {@code gemini.max-output-tokens} 하나로 고정 (stage 와 독립).
      */
-    public GenerationResult generateWithHistory(List<Content> contents,
-                                                int maxOutputTokens,
-                                                String systemInstruction) {
+    public GenerationResult generateWithHistory(List<Content> contents, String systemInstruction) {
         GenerateContentConfig.Builder configBuilder = GenerateContentConfig.builder()
-                .maxOutputTokens(Math.max(1, Math.min(maxOutputTokens, 2048)))
+                .maxOutputTokens(maxOutputTokens)
                 .temperature(temperature)
                 .topP(topP);
 
@@ -68,12 +70,12 @@ public class GeminiService {
     }
 
     /** 편의용 단일턴 오버로드 (내부적으로 generateWithHistory 사용). */
-    public GenerationResult generateWithUsage(String prompt, int maxOutputTokens, String systemInstruction) {
+    public GenerationResult generateWithUsage(String prompt, String systemInstruction) {
         Content single = Content.builder()
                 .role("user")
                 .parts(List.of(Part.fromText(prompt)))
                 .build();
-        return generateWithHistory(List.of(single), maxOutputTokens, systemInstruction);
+        return generateWithHistory(List.of(single), systemInstruction);
     }
 
     public record GenerationResult(String text, int promptTokens, int completionTokens) {}

@@ -39,6 +39,9 @@ gemini:
   # 생성 파라미터 — 장황/창의적 답변 유도 위해 약간 상향 (모델 기본 1.0)
   temperature: ${GEMINI_TEMPERATURE:1.2}
   top-p: ${GEMINI_TOP_P:0.95}
+  # 출력 토큰 상한. Gemini 2.5 Flash 의 max 는 8192. 너무 낮게 잡으면 답변이 잘림.
+  # stage 기반 입력 축소와 독립적으로 적용되어 "기억은 흐릿해도 수다는 끝이 없다" 유지.
+  max-output-tokens: ${GEMINI_MAX_OUTPUT_TOKENS:8192}
 
 firebase:
   credentials-path: ${FIREBASE_CREDENTIALS_PATH:}

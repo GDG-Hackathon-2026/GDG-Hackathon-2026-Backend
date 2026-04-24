@@ -90,7 +90,6 @@ public class ChatService {
 
         GeminiService.GenerationResult result = geminiService.generateWithHistory(
                 contents,
-                state.maxInputTokens(),
                 promptTemplateService.getActiveSystemPrompt()
         );
 
