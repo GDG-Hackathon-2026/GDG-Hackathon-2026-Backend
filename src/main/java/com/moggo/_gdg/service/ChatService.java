@@ -23,17 +23,20 @@ public class ChatService {
     private final MessageRepository messageRepository;
     private final GeminiService geminiService;
     private final CarbonPolicy carbonPolicy;
+    private final PromptTemplateService promptTemplateService;
 
     public ChatService(UserRepository userRepository,
                        ConversationRepository conversationRepository,
                        MessageRepository messageRepository,
                        GeminiService geminiService,
-                       CarbonPolicy carbonPolicy) {
+                       CarbonPolicy carbonPolicy,
+                       PromptTemplateService promptTemplateService) {
         this.userRepository = userRepository;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.geminiService = geminiService;
         this.carbonPolicy = carbonPolicy;
+        this.promptTemplateService = promptTemplateService;
     }
 
     @Transactional
@@ -79,7 +82,11 @@ public class ChatService {
         String truncated = truncateToApproxTokens(content, state.maxInputTokens());
         boolean wasTruncated = !truncated.equals(content);
 
-        GeminiService.GenerationResult result = geminiService.generateWithUsage(truncated, state.maxInputTokens());
+        GeminiService.GenerationResult result = geminiService.generateWithUsage(
+                truncated,
+                state.maxInputTokens(),
+                promptTemplateService.getActiveSystemPrompt()
+        );
 
         double carbon = carbonPolicy.estimate(result.promptTokens(), result.completionTokens());
         user.addCarbon(carbon);
