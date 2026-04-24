@@ -1,5 +1,7 @@
 package com.moggo._gdg.service;
 
+import com.google.genai.types.Content;
+import com.google.genai.types.Part;
 import com.moggo._gdg.domain.Conversation;
 import com.moggo._gdg.domain.Message;
 import com.moggo._gdg.domain.User;
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -75,15 +79,17 @@ public class ChatService {
         Conversation conv = conversationRepository.findByIdAndUserUid(conversationId, uid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "conversation not found"));
 
-        // 사용자 메시지는 원본 그대로 보존 (UI 상 잘려도 원문은 기록)
+        // 사용자 메시지는 원본 그대로 보존 (UI 상 잘려도 원문은 기록). 저장 후 이력에 포함됨.
         messageRepository.save(Message.userMessage(conv.getId(), content));
 
-        // Gemini 호출에 쓸 prompt 는 max_input_tokens 로 잘라서 전송 (토큰은 chars/4 근사)
-        String truncated = truncateToApproxTokens(content, state.maxInputTokens());
-        boolean wasTruncated = !truncated.equals(content);
+        // 이번 턴까지 포함한 모든 메시지 → 예산(max_input_tokens) 안에 들어오도록 과거부터 잘라냄.
+        // 현재 user 턴은 반드시 포함, 이전 메시지 일부만 남는 "컨텍스트 창 축소" 가 stage 별로 실현된다.
+        List<Message> allMessages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conv.getId());
+        List<Content> contents = buildContentsWithinBudget(allMessages, state.maxInputTokens());
+        boolean wasTruncated = contents.size() < allMessages.size();
 
-        GeminiService.GenerationResult result = geminiService.generateWithUsage(
-                truncated,
+        GeminiService.GenerationResult result = geminiService.generateWithHistory(
+                contents,
                 state.maxInputTokens(),
                 promptTemplateService.getActiveSystemPrompt()
         );
@@ -111,11 +117,59 @@ public class ChatService {
         );
     }
 
-    private String truncateToApproxTokens(String text, int maxTokens) {
-        int maxChars = Math.max(1, maxTokens * 4);
-        if (text.length() <= maxChars) return text;
-        // 앞부분을 버리고 뒷부분만 남김 (대화 맥락에서 최근 내용이 중요)
-        return text.substring(text.length() - maxChars);
+    /**
+     * createdAt 오름차순 메시지 목록에서 예산(maxInputTokens) 이하가 되도록 오래된 것부터 버리고
+     * Gemini 에 전달할 Content 배열을 구성한다.
+     *
+     * <p>토큰은 chars/4 근사. 가장 마지막(이번 턴의 user 메시지)은 반드시 포함하며, 예산을 혼자 초과하면
+     * 해당 메시지 내부를 뒷부분 기준으로 잘라낸다. 앞의 이전 메시지들은 전체 단위로 drop.
+     */
+    private List<Content> buildContentsWithinBudget(List<Message> messagesAsc, int maxInputTokens) {
+        int budgetChars = Math.max(1, maxInputTokens * 4);
+        if (messagesAsc.isEmpty()) return List.of();
+
+        // 뒤에서부터 쌓되 budget 초과 직전까지만 포함
+        ArrayList<Message> kept = new ArrayList<>();
+        int usedChars = 0;
+        for (int i = messagesAsc.size() - 1; i >= 0; i--) {
+            Message m = messagesAsc.get(i);
+            int cost = m.getContent().length();
+            if (kept.isEmpty()) {
+                // 마지막 메시지(이번 user 턴)는 무조건 포함. 혼자 예산을 넘으면 뒷부분만 남긴다.
+                if (cost > budgetChars) {
+                    String clipped = m.getContent().substring(cost - budgetChars);
+                    kept.add(cloneWithContent(m, clipped));
+                    usedChars = budgetChars;
+                } else {
+                    kept.add(m);
+                    usedChars = cost;
+                }
+                continue;
+            }
+            if (usedChars + cost > budgetChars) break;
+            kept.add(m);
+            usedChars += cost;
+        }
+        Collections.reverse(kept);
+
+        List<Content> contents = new ArrayList<>(kept.size());
+        for (Message m : kept) {
+            String role = m.getRole() == Message.Role.USER ? "user" : "model";
+            contents.add(Content.builder()
+                    .role(role)
+                    .parts(List.of(Part.fromText(m.getContent())))
+                    .build());
+        }
+        return contents;
+    }
+
+    /** 예산 초과로 잘린 마지막 메시지를 임시 표현용으로 복제 (DB 변경 없음). */
+    private Message cloneWithContent(Message original, String newContent) {
+        if (original.getRole() == Message.Role.USER) {
+            return Message.userMessage(original.getConversationId(), newContent);
+        }
+        // assistant 의 잘린 사본은 Gemini 에 보낼 이력 용도일 뿐이라 token/carbon 값은 0으로.
+        return Message.assistantMessage(original.getConversationId(), newContent, 0, 0, 0.0);
     }
 
     @io.swagger.v3.oas.annotations.media.Schema(

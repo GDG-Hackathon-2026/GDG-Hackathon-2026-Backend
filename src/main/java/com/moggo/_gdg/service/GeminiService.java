@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @ConditionalOnExpression("'${gemini.project:}' != ''")
 public class GeminiService {
@@ -35,20 +37,23 @@ public class GeminiService {
         return response.text();
     }
 
-    /** prompt + 출력 토큰 제한 + (옵션) system instruction → 응답 텍스트와 usage 메타데이터.
-     *  temperature/topP 는 application.yml 기반 고정값 적용 (장황·창의적 응답 유도). */
-    public GenerationResult generateWithUsage(String prompt, int maxOutputTokens, String systemInstruction) {
+    /**
+     * 멀티턴 대화: role 이 부여된 Content 목록을 그대로 Gemini 에 전달.
+     * 리스트 마지막은 이번에 보낼 user 턴이어야 한다.
+     */
+    public GenerationResult generateWithHistory(List<Content> contents,
+                                                int maxOutputTokens,
+                                                String systemInstruction) {
         GenerateContentConfig.Builder configBuilder = GenerateContentConfig.builder()
                 .maxOutputTokens(Math.max(1, Math.min(maxOutputTokens, 2048)))
                 .temperature(temperature)
                 .topP(topP);
 
         if (systemInstruction != null && !systemInstruction.isBlank()) {
-            Content sysContent = Content.fromParts(Part.fromText(systemInstruction));
-            configBuilder.systemInstruction(sysContent);
+            configBuilder.systemInstruction(Content.fromParts(Part.fromText(systemInstruction)));
         }
 
-        GenerateContentResponse response = client.models.generateContent(model, prompt, configBuilder.build());
+        GenerateContentResponse response = client.models.generateContent(model, contents, configBuilder.build());
         String text = response.text();
 
         int promptTokens = 0;
@@ -60,6 +65,15 @@ public class GeminiService {
             completionTokens = usage.candidatesTokenCount().orElse(0);
         }
         return new GenerationResult(text, promptTokens, completionTokens);
+    }
+
+    /** 편의용 단일턴 오버로드 (내부적으로 generateWithHistory 사용). */
+    public GenerationResult generateWithUsage(String prompt, int maxOutputTokens, String systemInstruction) {
+        Content single = Content.builder()
+                .role("user")
+                .parts(List.of(Part.fromText(prompt)))
+                .build();
+        return generateWithHistory(List.of(single), maxOutputTokens, systemInstruction);
     }
 
     public record GenerationResult(String text, int promptTokens, int completionTokens) {}
