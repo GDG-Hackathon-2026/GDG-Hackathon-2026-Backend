@@ -36,3 +36,10 @@ gemini:
   project: ${GOOGLE_CLOUD_PROJECT:}
   location: ${GOOGLE_CLOUD_LOCATION:us-central1}
   model: ${GEMINI_MODEL:gemini-2.5-flash}
+
+firebase:
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+
+carbon:
+  g-per-1k-input-tokens: ${CARBON_G_PER_1K_INPUT:0.015}
+  g-per-1k-output-tokens: ${CARBON_G_PER_1K_OUTPUT:0.025}
