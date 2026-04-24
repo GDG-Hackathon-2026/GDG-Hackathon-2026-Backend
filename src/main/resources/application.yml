@@ -36,6 +36,9 @@ gemini:
   project: ${GOOGLE_CLOUD_PROJECT:}
   location: ${GOOGLE_CLOUD_LOCATION:us-central1}
   model: ${GEMINI_MODEL:gemini-2.5-flash}
+  # 생성 파라미터 — 장황/창의적 답변 유도 위해 약간 상향 (모델 기본 1.0)
+  temperature: ${GEMINI_TEMPERATURE:1.2}
+  top-p: ${GEMINI_TOP_P:0.95}
 
 firebase:
   credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
