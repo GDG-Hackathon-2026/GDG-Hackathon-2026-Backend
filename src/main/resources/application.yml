@@ -31,3 +31,8 @@ springdoc:
     tags-sorter: alpha
     display-request-duration: true
   show-actuator: false
+
+gemini:
+  project: ${GOOGLE_CLOUD_PROJECT:}
+  location: ${GOOGLE_CLOUD_LOCATION:us-central1}
+  model: ${GEMINI_MODEL:gemini-2.5-flash}

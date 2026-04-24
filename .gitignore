@@ -41,6 +41,15 @@ out/
 .env.*
 !.env.example
 
+### GCP Service Account keys (NEVER commit) ###
+*.json.key
+*-sa.json
+*-service-account*.json
+gcp-*.json
+gdg-hackathon-*.json
+service-account-*.json
+key*.json
+
 ### Logs ###
 logs/
 *.log
