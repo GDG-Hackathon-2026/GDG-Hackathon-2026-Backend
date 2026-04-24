@@ -35,8 +35,15 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
+        String path = request.getRequestURI();
         String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
+        if (header == null || header.isBlank()) {
+            log.warn("AUTH-MISS {} {} — no Authorization header", request.getMethod(), path);
+        } else if (!header.startsWith("Bearer ")) {
+            log.warn("AUTH-BAD {} {} — header does not start with 'Bearer '. value starts with: '{}'",
+                    request.getMethod(), path,
+                    header.substring(0, Math.min(8, header.length())));
+        } else {
             String idToken = header.substring(7);
             try {
                 FirebaseToken decoded = firebaseAuth.verifyIdToken(idToken);
@@ -46,9 +53,10 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
                         AuthorityUtils.NO_AUTHORITIES
                 );
                 SecurityContextHolder.getContext().setAuthentication(auth);
+                log.info("AUTH-OK {} {} uid={}", request.getMethod(), path, decoded.getUid());
             } catch (FirebaseAuthException e) {
-                log.debug("Firebase token verification failed: {}", e.getMessage());
-                // leave SecurityContext empty; downstream endpoint-level auth enforcement will reject
+                log.warn("AUTH-FAIL {} {} — verifyIdToken failed: code={} msg={}",
+                        request.getMethod(), path, e.getAuthErrorCode(), e.getMessage());
             }
         }
         chain.doFilter(request, response);
