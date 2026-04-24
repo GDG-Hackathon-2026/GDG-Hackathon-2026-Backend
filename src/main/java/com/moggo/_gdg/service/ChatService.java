@@ -111,17 +111,56 @@ public class ChatService {
         return text.substring(text.length() - maxChars);
     }
 
-    public record ConversationView(Conversation conversation, List<Message> messages) {}
+    @io.swagger.v3.oas.annotations.media.Schema(
+            description = "대화 상세 조회 응답 — 대화 메타데이터 + 시간순 정렬된 전체 메시지 목록")
+    public record ConversationView(
+            @io.swagger.v3.oas.annotations.media.Schema(description = "대화 메타데이터")
+            Conversation conversation,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "createdAt 오름차순. 사용자/어시스턴트 교대로 등장")
+            List<Message> messages
+    ) {}
 
+    @io.swagger.v3.oas.annotations.media.Schema(description = "Gemini 응답 메시지 (sendMessage 응답의 일부)")
     public record AssistantMessageView(
+            @io.swagger.v3.oas.annotations.media.Schema(description = "DB 에 저장된 메시지 ID", example = "1235")
             Long id,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "Gemini 응답 텍스트",
+                    example = "지구온난화는 주로 온실가스 배출로 인한…")
             String content,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "Gemini usageMetadata 의 promptTokenCount",
+                    example = "42")
             int promptTokens,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "Gemini usageMetadata 의 candidatesTokenCount",
+                    example = "128")
             int completionTokens,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "이 응답 한 건으로 발생한 탄소 (gCO₂eq)",
+                    example = "0.0038")
             double carbonG
     ) {}
 
-    public record CarbonState(double totalCarbonG, int stage, int maxInputTokens, int meltingPercent) {}
+    @io.swagger.v3.oas.annotations.media.Schema(description = "메시지 전송 후 갱신된 탄소/녹아내림 상태")
+    public record CarbonState(
+            @io.swagger.v3.oas.annotations.media.Schema(description = "갱신된 누적 탄소", example = "12.838")
+            double totalCarbonG,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "새 단계 (0~5)", example = "2")
+            int stage,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "다음 호출에 적용될 허용 input tokens",
+                    example = "2048")
+            int maxInputTokens,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "현재 stage 진행률 (0~100)", example = "42")
+            int meltingPercent
+    ) {}
 
-    public record SendResult(AssistantMessageView assistantMessage, CarbonState carbonState, boolean truncated) {}
+    @io.swagger.v3.oas.annotations.media.Schema(description = "메시지 전송 응답")
+    public record SendResult(
+            @io.swagger.v3.oas.annotations.media.Schema(description = "어시스턴트 응답 + 사용량 + 탄소")
+            AssistantMessageView assistantMessage,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "갱신된 사용자 탄소 상태 (다음 요청부터 적용)")
+            CarbonState carbonState,
+            @io.swagger.v3.oas.annotations.media.Schema(
+                    description = "입력 prompt 가 maxInputTokens 를 초과해 서버에서 앞부분이 잘렸는지 여부. "
+                            + "프론트에서 'N 글자가 생략되었습니다' 같은 안내 표시에 사용",
+                    example = "false")
+            boolean truncated
+    ) {}
 }

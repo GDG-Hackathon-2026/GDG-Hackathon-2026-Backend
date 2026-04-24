@@ -2,6 +2,12 @@ package com.moggo._gdg.controller;
 
 import com.moggo._gdg.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api")
-@Tag(name = "Me", description = "현재 사용자 정보 및 탄소/녹아내림 상태")
+@Tag(name = "Me", description = "현재 Firebase 인증 사용자의 탄소 누적량 및 녹아내림 단계 조회")
 public class MeController {
 
     private final UserService userService;
@@ -20,9 +26,44 @@ public class MeController {
     }
 
     @GetMapping("/me")
-    @Operation(summary = "Get current user state",
-            description = "Firebase 인증된 사용자의 uid, 누적 탄소량, 녹아내림 단계, 허용 입력 토큰 수 반환")
-    public UserService.MeResponse me(@AuthenticationPrincipal String uid) {
+    @Operation(
+            summary = "내 탄소/녹아내림 상태 조회",
+            description = """
+                    Firebase ID token 에서 추출한 uid 로 현재 사용자의 누적 탄소 및 녹아내림 상태를 반환한다.
+
+                    **lazy provisioning**: uid 에 해당하는 row 가 DB 에 없으면 자동 생성 후 carbonUsedG=0 상태로 반환.
+                    처음 로그인한 사용자도 이 endpoint 호출 한 번으로 users 테이블에 등록된다.
+
+                    **프론트 사용 패턴**:
+                    1. `AuthProvider.ready === true` 대기
+                    2. 앱 초기 로드 시 1회 호출해 초기 상태 가져옴
+                    3. 이후 `sendMessage` 응답의 `carbonState` 로 실시간 갱신 (재조회 불필요)
+                    4. 페이지 새로고침 또는 다른 탭에서 탄소 동기화가 필요하면 다시 호출
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "사용자 상태",
+                    content = @Content(
+                            schema = @Schema(implementation = UserService.MeResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "uid": "OhvZ8mBz1TYQRj2k4p",
+                                      "carbonUsedG": 12.834,
+                                      "stage": 2,
+                                      "maxInputTokens": 2048,
+                                      "meltingPercent": 42
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(responseCode = "401", description = "Authorization 헤더 누락 또는 유효하지 않은 토큰"),
+            @ApiResponse(responseCode = "403", description = "토큰 있지만 Firebase 검증 실패 (만료/변조)")
+    })
+    public UserService.MeResponse me(
+            @Parameter(hidden = true) @AuthenticationPrincipal String uid
+    ) {
         return userService.toResponse(userService.getOrCreate(uid));
     }
 }
