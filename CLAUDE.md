@@ -39,6 +39,8 @@
 - `GET /api/conversations/{id}` — 대화 + 전체 메시지
 - `POST /api/conversations/{id}/messages` — Gemini 호출 + 탄소 누적 + 녹아내림 단계 반영
 - `GET /api/me` — 내 uid / 누적 탄소 / stage / maxInputTokens / meltingPercent
+- `POST /api/me/carbon/reset` — 내 누적 탄소 0 으로 초기화, 갱신된 MeResponse 반환
+- `GET /api/stats/carbon` — 전체 사용자 탄소 통계 (userCount·activeUserCount·총합·전체 평균·활성 평균). 개인 식별 정보 없음. 인증 필요
 - `POST /api/gemini/generate` — raw Gemini (탄소/녹아내림 없음). body 의 `systemPrompt` 로 override 가능, 없으면 현재 active 템플릿 자동 적용. `GEMINI_RAW_PUBLIC=true` 면 인증 없이 호출 가능 (프롬프트 엔지니어링 반복용)
 
 ## 4. 인증 · 환경변수 게이트

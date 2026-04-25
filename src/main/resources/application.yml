@@ -52,6 +52,17 @@ firebase:
 carbon:
   g-per-1k-input-tokens: ${CARBON_G_PER_1K_INPUT:0.015}
   g-per-1k-output-tokens: ${CARBON_G_PER_1K_OUTPUT:0.025}
+  # /api/stats/carbon 응답 equivalents 블록의 환산 상수.
+  # 출처:
+  #   해빙: Notz & Stroeve 2016 (Science) — 1 ton CO₂ ≈ 3 m² 북극 9월 해빙 영구 손실
+  #   자동차: 환경부 "2016~2020년 자동차 온실가스 관리제도 이행실적" — 2020년 국내 실제
+  #          판매실적 가중평균 141.3 g/km (인센티브 미반영)
+  #   폰: US EPA Greenhouse Gas Equivalencies Calculator (2022 eGRID) —
+  #       1.24×10⁻⁵ metric tons CO₂/charge = 12.4 g
+  equivalents:
+    sea-ice-m2-per-ton: ${CARBON_EQ_SEA_ICE_M2_PER_TON:3.0}
+    car-g-per-km: ${CARBON_EQ_CAR_G_PER_KM:141.3}
+    phone-g-per-charge: ${CARBON_EQ_PHONE_G_PER_CHARGE:12.4}
 
 chat:
   prompt:
