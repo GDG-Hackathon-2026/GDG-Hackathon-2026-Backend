@@ -33,7 +33,7 @@ ID token 은 JWT 이고 SDK 가 1 시간마다 자동 갱신한다. 프론트는
 - [x] Firebase 프로젝트 = GCP 프로젝트 `gdg-hackathon-494307` 에 연결
 - [x] Authentication 기능 활성화 + **익명** 로그인 방법 ON
 - [x] Firebase Admin SDK SA key EC2 에 배포, 백엔드 토큰 검증 필터 가동
-- [x] 백엔드 CORS 가 `http://13.125.197.228:3001`, `http://localhost:3000`, `http://localhost:3001` 허용
+- [x] 백엔드 CORS 가 `http://13.125.197.228`, `http://localhost:3000`, `http://localhost:3001` 허용
 - [x] `/api/ping` 만 public, 나머지 `/api/**` 는 인증 필수
 
 **프론트 세션이 추가로 해야 할 Firebase 콘솔 작업** (3 분):
@@ -402,7 +402,7 @@ curl -X POST http://13.125.197.228:8080/api/conversations/1/messages \
 | `auth.currentUser` 가 `null` | API 호출이 "not authenticated" | `AuthProvider.ready === true` 가 된 후에만 API 호출 |
 | 익명 로그인 실패 `auth/unauthorized-domain` | Firebase 가 origin 거부 | Authorized Domains 에 `13.125.197.228` 추가 |
 | API 에서 403 | 토큰 없거나 잘못됨 | DevTools Network 탭에서 Authorization 헤더 실제로 붙었는지 확인. Bearer 대소문자 주의 |
-| CORS 에러 | 백엔드가 origin 거부 | `http://13.125.197.228:3001` 또는 `http://localhost:3000/3001` 인지 확인. 다른 포트는 백엔드 `CorsConfig.java` 에 추가 필요 (백엔드 리포 PR) |
+| CORS 에러 | 백엔드가 origin 거부 | `http://13.125.197.228` 또는 `http://localhost:3000/3001` 인지 확인. 다른 포트는 백엔드 `CorsConfig.java` 에 추가 필요 (백엔드 리포 PR) |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` undefined | 브라우저 콘솔에서 `Firebase: Error (auth/invalid-api-key)` | 빌드 타임 주입 — Dockerfile `ARG` + workflow `build-args` 둘 다 필요 |
 | 토큰 1 시간 지나니 401 뜨기 시작 | ID token 만료 | `getIdToken()` 을 매 호출마다 await (매번 fresh token 반환. 만료 임박 시 자동 refresh) |
 | 새 기기에서 다른 UID | 익명 UID 는 기기별 | 정상 동작. 동일 사용자 유지 원하면 Google 로그인으로 업그레이드 (8 섹션) |
