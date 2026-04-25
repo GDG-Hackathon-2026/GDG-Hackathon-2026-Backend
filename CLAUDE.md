@@ -18,7 +18,7 @@
   Firebase Auth (signInAnonymously) → ID token
       │
       ▼  Authorization: Bearer <token>  (또는 dev 전용 X-Dev-Uid)
-[EC2 t3.small · Amazon Linux 2023 · 3.39.235.46]
+[EC2 t3.small · Amazon Linux 2023 · 13.125.197.228]
   docker 외부 네트워크 `shared`
   ├─ gdg-app       Spring Boot 4.0.5 / Java 21 / 8080 (이 리포)
   ├─ gdg-mysql     MySQL 8 / 내부 전용
@@ -33,7 +33,7 @@
 
 ## 3. 주요 엔드포인트 (Swagger 참조)
 
-- http://3.39.235.46:8080/swagger-ui.html — 우상단 **Authorize** 버튼으로 Bearer 또는 X-Dev-Uid 입력
+- http://13.125.197.228:8080/swagger-ui.html — 우상단 **Authorize** 버튼으로 Bearer 또는 X-Dev-Uid 입력
 - `POST /api/conversations` — 대화 생성
 - `GET /api/conversations` — 내 대화 목록
 - `GET /api/conversations/{id}` — 대화 + 전체 메시지
@@ -117,14 +117,14 @@
 - **프론트 인증 가이드**: [docs/FIREBASE_AUTH_GUIDE.md](docs/FIREBASE_AUTH_GUIDE.md)
 - **Docker Hub**: `jiseong02/gdg-2026-backend`
 - **EC2**: SSH alias `Lion-2026gdg` (config 는 로컬, key `2026_GDG.pem` 은 민감 — 팀원에게 요청)
-- **Grafana**: http://3.39.235.46:3000 (admin / `gdg1234`)
-- **Prometheus**: http://3.39.235.46:9090
+- **Grafana**: http://13.125.197.228:3000 (admin / `gdg1234`)
+- **Prometheus**: http://13.125.197.228:9090
 
 ## 11. 세션 재개시 루틴
 
 ```bash
 # 1. 배포 상태 확인
-curl -s http://3.39.235.46:8080/actuator/health
+curl -s http://13.125.197.228:8080/actuator/health
 
 # 2. 컨테이너 동작
 ssh Lion-2026gdg 'docker ps --format "{{.Names}}\t{{.Status}}"'
@@ -133,5 +133,5 @@ ssh Lion-2026gdg 'docker ps --format "{{.Names}}\t{{.Status}}"'
 ssh Lion-2026gdg 'docker logs gdg-app --tail 30 2>&1 | grep -v WARNING | tail -20'
 
 # 4. DevAuth 로 빠른 테스트
-curl http://3.39.235.46:8080/api/me -H "X-Dev-Uid: test-user-1"
+curl http://13.125.197.228:8080/api/me -H "X-Dev-Uid: test-user-1"
 ```

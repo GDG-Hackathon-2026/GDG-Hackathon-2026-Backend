@@ -82,7 +82,7 @@ public class OpenApiConfig {
                                 `meltingPercent` 는 현재 stage 내부의 0~100% 진행률. 프론트에서 UI 강도 smooth 보간용.
                                 """))
                 .servers(List.of(
-                        new Server().url("http://3.39.235.46:8080").description("EC2 (prod)"),
+                        new Server().url("http://13.125.197.228:8080").description("EC2 (prod)"),
                         new Server().url("http://localhost:8080").description("Local dev")
                 ))
                 .components(components)

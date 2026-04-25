@@ -44,7 +44,7 @@ icacls "$HOME\.ssh\2026_GDG.pem" /inheritance:r /grant:r "$($env:USERNAME):(R)"
 ### 2-B. `~/.ssh/config` 에 alias 추가
 ```
 Host Lion-2026gdg
-  HostName 3.39.235.46
+  HostName 13.125.197.228
   User ec2-user
   Port 22
   IdentityFile ~/.ssh/2026_GDG.pem
@@ -108,13 +108,13 @@ ssh Lion-2026gdg 'docker inspect -f "{{.State.StartedAt}}" gdg-app'
 
 ```bash
 # 대화 생성
-curl -X POST http://3.39.235.46:8080/api/conversations \
+curl -X POST http://13.125.197.228:8080/api/conversations \
   -H "Content-Type: application/json" \
   -H "X-Dev-Uid: whoever-i-am" \
   -d '{"title":"test"}'
 
 # 메시지 (Gemini 실제 호출)
-curl -X POST "http://3.39.235.46:8080/api/conversations/<id>/messages" \
+curl -X POST "http://13.125.197.228:8080/api/conversations/<id>/messages" \
   -H "Content-Type: application/json" \
   -H "X-Dev-Uid: whoever-i-am" \
   -d '{"content":"hello"}'
@@ -155,17 +155,17 @@ Swagger UI 에서도 우상단 **Authorize** → `devUid` 칸에 임의 값 입�
 
 ```bash
 # 건강 확인
-curl -sf http://3.39.235.46:8080/actuator/health
+curl -sf http://13.125.197.228:8080/actuator/health
 ssh Lion-2026gdg 'docker ps --format "table {{.Names}}\t{{.Status}}"'
 
 # 내 상태 (DevAuth)
-curl http://3.39.235.46:8080/api/me -H "X-Dev-Uid: jiseong-local"
+curl http://13.125.197.228:8080/api/me -H "X-Dev-Uid: jiseong-local"
 
 # 기본 메시지 전송 테스트 (Gemini + 북극곰 페르소나)
-CID=$(curl -s -X POST http://3.39.235.46:8080/api/conversations \
+CID=$(curl -s -X POST http://13.125.197.228:8080/api/conversations \
   -H "Content-Type: application/json" -H "X-Dev-Uid: jiseong-local" \
   -d '{"title":"restart test"}' | python -c "import sys,json; print(json.load(sys.stdin)['id'])")
-curl -X POST "http://3.39.235.46:8080/api/conversations/$CID/messages" \
+curl -X POST "http://13.125.197.228:8080/api/conversations/$CID/messages" \
   -H "Content-Type: application/json" -H "X-Dev-Uid: jiseong-local" \
   -d '{"content":"hi polar bear"}'
 ```
