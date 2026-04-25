@@ -112,6 +112,33 @@ public class ChatController {
         return chatService.getConversation(uid, id);
     }
 
+    @GetMapping("/{id}/prompt-preview")
+    @Operation(
+            summary = "다음 턴에 Gemini 로 보낼 history 미리보기 (멀티턴 기억 검증용)",
+            description = """
+                    실제로 Gemini 를 호출하지 않고, "지금 이 대화에서 다음 메시지를 보냈다면 모델에 어떤 history 가 함께 전달될지" 를 보여준다.
+
+                    페르소나가 정보를 주지 않도록 설계되어 있어 "기억하니?" 라고 물어도 직접 확인이 어렵다. 이 엔드포인트로:
+                    - `contentsThatWouldBeSent` 가 user/model 메시지를 시간순으로 담고 있으면 → multi-turn history 가 전달되는 상태.
+                    - 길이가 1 (= 마지막 user 메시지 하나) 이면 → 기억 작동 안 하거나 잘려 나간 상태.
+                    - `wasTruncated=true` 면 stage 별 토큰 예산 초과로 오래된 메시지가 drop 된 상태 (= "곰이 잊는 중").
+
+                    **호출 자체는 탄소를 누적하지 않으며 Gemini API 도 안 부른다.** 안전하게 반복 호출 가능.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200",
+                    description = "다음 턴에 사용될 history",
+                    content = @Content(schema = @Schema(implementation = ChatService.PromptPreview.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "404", description = "대화가 없거나 다른 사용자 소유")
+    })
+    public ChatService.PromptPreview promptPreview(
+            @Parameter(hidden = true) @AuthenticationPrincipal String uid,
+            @Parameter(description = "대화 ID", example = "42") @PathVariable Long id) {
+        return chatService.debugPromptPreview(uid, id);
+    }
+
     @PostMapping("/{id}/messages")
     @Operation(
             summary = "메시지 전송 → Gemini 호출 → 탄소 누적",

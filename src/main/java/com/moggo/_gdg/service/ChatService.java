@@ -64,6 +64,38 @@ public class ChatService {
         return new ConversationView(conv, messages);
     }
 
+    /**
+     * 다음 턴에 Gemini 로 보낼 history(Content[]) 를 실제 호출 없이 미리보기로 반환한다.
+     * 멀티턴 기억(이전 메시지가 모델에 전달되는지) 을 검증하는 용도.
+     */
+    @Transactional(readOnly = true)
+    public PromptPreview debugPromptPreview(String uid, Long conversationId) {
+        User user = userRepository.findById(uid).orElseGet(() -> userRepository.save(new User(uid)));
+        CarbonPolicy.MeltingState state = carbonPolicy.meltingStateFor(user.getCarbonUsedG());
+
+        Conversation conv = conversationRepository.findByIdAndUserUid(conversationId, uid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "conversation not found"));
+        List<Message> allMessages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conv.getId());
+        List<Content> contents = buildContentsWithinBudget(allMessages, state.maxInputTokens());
+
+        List<PromptTurn> turns = new ArrayList<>(contents.size());
+        for (Content c : contents) {
+            String role = c.role().orElse("");
+            String text = c.parts().orElse(List.of()).stream()
+                    .map(p -> p.text().orElse(""))
+                    .collect(java.util.stream.Collectors.joining());
+            turns.add(new PromptTurn(role, text));
+        }
+        return new PromptPreview(
+                state.stage(),
+                state.maxInputTokens(),
+                allMessages.size(),
+                contents.size(),
+                contents.size() < allMessages.size(),
+                turns
+        );
+    }
+
     @Transactional
     public SendResult sendMessage(String uid, Long conversationId, String content, Persona persona) {
         if (content == null || content.isBlank()) {
@@ -216,6 +248,43 @@ public class ChatService {
             int maxInputTokens,
             @io.swagger.v3.oas.annotations.media.Schema(description = "현재 stage 진행률 (0~100)", example = "42")
             int meltingPercent
+    ) {}
+
+    @io.swagger.v3.oas.annotations.media.Schema(
+            description = "Gemini 에 전달되는 history 한 턴 — role + 본문 텍스트. 멀티턴 기억 검증용 미리보기에 사용")
+    public record PromptTurn(
+            @io.swagger.v3.oas.annotations.media.Schema(
+                    description = "Gemini Content role. user/model 중 하나",
+                    example = "user")
+            String role,
+            @io.swagger.v3.oas.annotations.media.Schema(
+                    description = "이 턴의 본문 텍스트. user 메시지는 원문, model 은 이전 Gemini 응답",
+                    example = "내가 좋아하는 색은 보라색이야")
+            String text
+    ) {}
+
+    @io.swagger.v3.oas.annotations.media.Schema(
+            description = "다음 메시지 전송 시 Gemini 에 보낼 history 미리보기 — 실제 호출/탄소 누적 없음. "
+                    + "history(=과거 메시지) 가 정말 모델로 전달되는지 검증하는 진단용")
+    public record PromptPreview(
+            @io.swagger.v3.oas.annotations.media.Schema(description = "현재 사용자의 녹아내림 단계 (0~5)", example = "1")
+            int stage,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "이 단계에서 적용되는 입력 토큰 예산", example = "4096")
+            int maxInputTokens,
+            @io.swagger.v3.oas.annotations.media.Schema(
+                    description = "DB 에 저장된 이 대화의 전체 메시지 수", example = "12")
+            int totalStoredMessages,
+            @io.swagger.v3.oas.annotations.media.Schema(
+                    description = "예산 안에 들어와 실제로 Gemini 에 포함될 메시지 수", example = "8")
+            int messagesIncludedInPrompt,
+            @io.swagger.v3.oas.annotations.media.Schema(
+                    description = "예산 초과로 오래된 메시지가 잘렸는지 여부 "
+                            + "(true 면 totalStoredMessages > messagesIncludedInPrompt)",
+                    example = "true")
+            boolean wasTruncated,
+            @io.swagger.v3.oas.annotations.media.Schema(
+                    description = "Gemini 로 보낼 history 의 실제 내용. 이 배열의 길이가 messagesIncludedInPrompt 와 같다")
+            List<PromptTurn> contentsThatWouldBeSent
     ) {}
 
     @io.swagger.v3.oas.annotations.media.Schema(description = "메시지 전송 응답")
