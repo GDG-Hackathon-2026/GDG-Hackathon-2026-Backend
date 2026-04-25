@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -65,5 +66,43 @@ public class MeController {
             @Parameter(hidden = true) @AuthenticationPrincipal String uid
     ) {
         return userService.toResponse(userService.getOrCreate(uid));
+    }
+
+    @PostMapping("/me/carbon/reset")
+    @Operation(
+            summary = "내 누적 탄소를 0 으로 초기화",
+            description = """
+                    누적 탄소(carbonUsedG) 를 0 으로 되돌린다. stage 와 meltingPercent 도 자연히 0 으로 리셋.
+
+                    현재는 전액 초기화만 지원. 추후 "버튼 연타로 N g 차감" 같은 감산 방식으로 바뀔 수 있으므로
+                    URL 은 `/me/carbon/reset` 으로 action-style 을 유지 (예: 추가될 `/me/carbon/reduce` 와 공존 가능).
+
+                    대화 이력·메시지는 보존. 오직 User row 의 탄소 누적치만 리셋한다.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "초기화 후의 사용자 상태 (carbonUsedG=0, stage=0, meltingPercent=0)",
+                    content = @Content(
+                            schema = @Schema(implementation = UserService.MeResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "uid": "OhvZ8mBz1TYQRj2k4p",
+                                      "carbonUsedG": 0.0,
+                                      "stage": 0,
+                                      "maxInputTokens": 8192,
+                                      "meltingPercent": 0
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(responseCode = "401", description = "Authorization 헤더 누락 또는 유효하지 않은 토큰"),
+            @ApiResponse(responseCode = "403", description = "토큰 있지만 Firebase 검증 실패")
+    })
+    public UserService.MeResponse resetCarbon(
+            @Parameter(hidden = true) @AuthenticationPrincipal String uid
+    ) {
+        return userService.toResponse(userService.resetCarbon(uid));
     }
 }

@@ -21,6 +21,13 @@ public class UserService {
         return userRepository.findById(uid).orElseGet(() -> userRepository.save(new User(uid)));
     }
 
+    @Transactional
+    public User resetCarbon(String uid) {
+        User user = getOrCreate(uid);
+        user.resetCarbon();
+        return user;
+    }
+
     public MeResponse toResponse(User user) {
         CarbonPolicy.MeltingState state = carbonPolicy.meltingStateFor(user.getCarbonUsedG());
         int percent = carbonPolicy.meltingPercent(user.getCarbonUsedG());

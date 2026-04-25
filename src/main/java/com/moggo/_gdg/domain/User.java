@@ -31,4 +31,8 @@ public class User {
     public void addCarbon(double gramsCO2eq) {
         this.carbonUsedG += gramsCO2eq;
     }
+
+    public void resetCarbon() {
+        this.carbonUsedG = 0;
+    }
 }
