@@ -66,7 +66,10 @@ carbon:
 
 chat:
   prompt:
-    active-template: ${CHAT_PROMPT_TEMPLATE:polar-bear}
+    # raw endpoint (POST /api/gemini/generate) 의 fallback 시스템 프롬프트.
+    # 일반 대화 (POST /api/conversations/{id}/messages) 는 대화에 저장된 persona 키로 매핑되므로
+    # 이 값과 무관. 페르소나 전체 목록은 Persona enum 참고.
+    active-template: ${CHAT_PROMPT_TEMPLATE:polar-bear-grandpa}
 
 # 개발·테스트 전용 Firebase 인증 우회.
 # true 일 때만 X-Dev-Uid 헤더를 받아 그 값을 uid 로 세팅. 실배포 기본은 false.

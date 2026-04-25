@@ -59,6 +59,19 @@ public class PromptTemplateService {
         return templates.getOrDefault(activeTemplateName, "");
     }
 
+    /**
+     * 키로 직접 시스템 프롬프트를 조회. 페르소나별 .md 파일명(.md 제외) 을 키로 쓴다.
+     * 매칭되는 템플릿이 없으면 active 템플릿으로 폴백 (운영 중 .md 가 빠져 있어도 대화는 죽지 않게).
+     */
+    public String getSystemPromptByKey(String key) {
+        if (key != null) {
+            String found = templates.get(key);
+            if (found != null) return found;
+            log.warn("Prompt template '{}' not found — falling back to active '{}'", key, activeTemplateName);
+        }
+        return getActiveSystemPrompt();
+    }
+
     public String getActiveTemplateName() {
         return activeTemplateName;
     }

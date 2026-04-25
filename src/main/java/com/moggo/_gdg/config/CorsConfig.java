@@ -17,6 +17,8 @@ public class CorsConfig {
         config.setAllowedOriginPatterns(List.of(
                 "http://13.125.197.228",
                 "http://13.125.197.228:3001",
+                "http://ec2-13-125-197-228.ap-northeast-2.compute.amazonaws.com",
+                "http://ec2-13-125-197-228.ap-northeast-2.compute.amazonaws.com:3001",
                 "http://localhost:3000",
                 "http://localhost:3001"
         ));

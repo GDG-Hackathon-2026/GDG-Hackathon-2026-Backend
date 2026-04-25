@@ -4,6 +4,7 @@ import com.google.genai.types.Content;
 import com.google.genai.types.Part;
 import com.moggo._gdg.domain.Conversation;
 import com.moggo._gdg.domain.Message;
+import com.moggo._gdg.domain.Persona;
 import com.moggo._gdg.domain.User;
 import com.moggo._gdg.repository.ConversationRepository;
 import com.moggo._gdg.repository.MessageRepository;
@@ -64,7 +65,7 @@ public class ChatService {
     }
 
     @Transactional
-    public SendResult sendMessage(String uid, Long conversationId, String content) {
+    public SendResult sendMessage(String uid, Long conversationId, String content, Persona persona) {
         if (content == null || content.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "content must not be blank");
         }
@@ -79,8 +80,11 @@ public class ChatService {
         Conversation conv = conversationRepository.findByIdAndUserUid(conversationId, uid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "conversation not found"));
 
-        // 사용자 메시지는 원본 그대로 보존 (UI 상 잘려도 원문은 기록). 저장 후 이력에 포함됨.
-        messageRepository.save(Message.userMessage(conv.getId(), content));
+        // 페르소나는 메시지 단위. 클라이언트가 매 턴 다른 값을 줄 수 있고, 안 주면 기본값.
+        Persona resolvedPersona = persona == null ? Persona.defaultPersona() : persona;
+
+        // 사용자 메시지는 원본 그대로 보존 (UI 상 잘려도 원문은 기록). 이 턴에 요청한 페르소나도 함께 박는다.
+        messageRepository.save(Message.userMessage(conv.getId(), content, resolvedPersona));
 
         // 이번 턴까지 포함한 모든 메시지 → 예산(max_input_tokens) 안에 들어오도록 과거부터 잘라냄.
         // 현재 user 턴은 반드시 포함, 이전 메시지 일부만 남는 "컨텍스트 창 축소" 가 stage 별로 실현된다.
@@ -88,9 +92,12 @@ public class ChatService {
         List<Content> contents = buildContentsWithinBudget(allMessages, state.maxInputTokens());
         boolean wasTruncated = contents.size() < allMessages.size();
 
+        // 시스템 프롬프트는 이번 턴의 페르소나로만 결정. 과거 턴이 다른 페르소나였어도 영향 없음.
+        String systemPrompt = promptTemplateService.getSystemPromptByKey(resolvedPersona.promptKey());
+
         GeminiService.GenerationResult result = geminiService.generateWithHistory(
                 contents,
-                promptTemplateService.getActiveSystemPrompt()
+                systemPrompt
         );
 
         double carbon = carbonPolicy.estimate(result.promptTokens(), result.completionTokens());
@@ -98,7 +105,7 @@ public class ChatService {
         userRepository.save(user);
 
         Message assistant = messageRepository.save(
-                Message.assistantMessage(conv.getId(), result.text(),
+                Message.assistantMessage(conv.getId(), result.text(), resolvedPersona,
                         result.promptTokens(), result.completionTokens(), carbon));
 
         CarbonPolicy.MeltingState newState = carbonPolicy.meltingStateFor(user.getCarbonUsedG());
@@ -165,10 +172,10 @@ public class ChatService {
     /** 예산 초과로 잘린 마지막 메시지를 임시 표현용으로 복제 (DB 변경 없음). */
     private Message cloneWithContent(Message original, String newContent) {
         if (original.getRole() == Message.Role.USER) {
-            return Message.userMessage(original.getConversationId(), newContent);
+            return Message.userMessage(original.getConversationId(), newContent, original.getPersona());
         }
         // assistant 의 잘린 사본은 Gemini 에 보낼 이력 용도일 뿐이라 token/carbon 값은 0으로.
-        return Message.assistantMessage(original.getConversationId(), newContent, 0, 0, 0.0);
+        return Message.assistantMessage(original.getConversationId(), newContent, original.getPersona(), 0, 0, 0.0);
     }
 
     @io.swagger.v3.oas.annotations.media.Schema(

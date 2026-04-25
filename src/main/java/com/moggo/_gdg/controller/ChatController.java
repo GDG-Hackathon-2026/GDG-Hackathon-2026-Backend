@@ -1,6 +1,7 @@
 package com.moggo._gdg.controller;
 
 import com.moggo._gdg.domain.Conversation;
+import com.moggo._gdg.domain.Persona;
 import com.moggo._gdg.service.ChatService;
 import com.moggo._gdg.web.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,6 +47,9 @@ public class ChatController {
                     비어있는 대화 세션을 생성한다. 실제 메시지 송수신은 반환된 `id` 로 `POST /api/conversations/{id}/messages` 호출.
 
                     생성과 동시에 users 테이블에 사용자 row 가 없으면 lazy provisioning.
+
+                    페르소나는 대화 단위가 아니라 **메시지 단위**로 지정한다. 메시지 전송 시 `persona` 필드를 통해
+                    매 턴 다른 페르소나로 대화할 수 있다. 가용 목록은 `GET /api/personas` 참고.
                     """
     )
     @ApiResponses({
@@ -171,12 +175,12 @@ public class ChatController {
             @Parameter(description = "대화 ID", example = "42") @PathVariable Long id,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     required = true,
-                    description = "사용자 메시지 본문",
+                    description = "사용자 메시지 본문 + 이 턴에 적용할 페르소나 (생략 시 POLAR_BEAR_GRANDPA)",
                     content = @Content(examples = @ExampleObject(
-                            value = "{\"content\":\"지구온난화에 대해 100자로 설명해줘\"}"))
+                            value = "{\"content\":\"지구온난화에 대해 100자로 설명해줘\",\"persona\":\"POLAR_BEAR_BOY\"}"))
             )
             @RequestBody SendRequest request) {
-        return chatService.sendMessage(uid, id, request.content());
+        return chatService.sendMessage(uid, id, request.content(), request.persona());
     }
 
     @Schema(description = "대화 생성 요청 body")
@@ -190,6 +194,10 @@ public class ChatController {
             @Schema(description = "사용자 메시지 본문. 공백 금지. 길면 서버에서 잘릴 수 있음",
                     example = "지구온난화에 대해 100자로 설명해줘",
                     requiredMode = Schema.RequiredMode.REQUIRED)
-            String content
+            String content,
+            @Schema(description = "이 메시지에 답할 북극곰 페르소나. 생략 시 POLAR_BEAR_GRANDPA. "
+                    + "메시지마다 다르게 지정 가능. 가용 값은 GET /api/personas 참고",
+                    example = "POLAR_BEAR_BOY")
+            Persona persona
     ) {}
 }

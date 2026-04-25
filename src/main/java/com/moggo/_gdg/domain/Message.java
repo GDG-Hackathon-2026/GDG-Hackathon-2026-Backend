@@ -57,24 +57,34 @@ public class Message {
             example = "0.0038", nullable = true)
     private Double carbonG;
 
+    // 메시지 단위 페르소나. user 메시지엔 "이 턴에 어느 페르소나로 답해달라" 한 값,
+    // assistant 메시지엔 "실제로 어느 페르소나로 답했는지" 가 박힌다 (보통 user 의 값과 동일).
+    // nullable 인 이유: 기존 row(이 컬럼이 없던 시절) 호환 + 클라이언트가 생략한 경우.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "persona", length = 32)
+    @Schema(description = "이 메시지(턴)에 적용된 북극곰 페르소나. 메시지마다 다를 수 있다.",
+            example = "POLAR_BEAR_BOY", nullable = true)
+    private Persona persona;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Schema(description = "생성 시각 (ISO-8601, UTC)", example = "2026-04-24T08:31:12Z")
     private Instant createdAt;
 
-    private Message(Long conversationId, Role role, String content) {
+    private Message(Long conversationId, Role role, String content, Persona persona) {
         this.conversationId = conversationId;
         this.role = role;
         this.content = content;
+        this.persona = persona;
         this.createdAt = Instant.now();
     }
 
-    public static Message userMessage(Long conversationId, String content) {
-        return new Message(conversationId, Role.USER, content);
+    public static Message userMessage(Long conversationId, String content, Persona persona) {
+        return new Message(conversationId, Role.USER, content, persona);
     }
 
-    public static Message assistantMessage(Long conversationId, String content,
+    public static Message assistantMessage(Long conversationId, String content, Persona persona,
                                            int promptTokens, int completionTokens, double carbonG) {
-        Message m = new Message(conversationId, Role.ASSISTANT, content);
+        Message m = new Message(conversationId, Role.ASSISTANT, content, persona);
         m.promptTokens = promptTokens;
         m.completionTokens = completionTokens;
         m.carbonG = carbonG;
