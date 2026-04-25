@@ -1,6 +1,7 @@
 package com.moggo._gdg.controller;
 
 import com.moggo._gdg.service.GeminiService;
+import com.moggo._gdg.service.PromptTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -21,17 +22,21 @@ import java.util.Map;
 @ConditionalOnExpression("'${gemini.project:}' != ''")
 @Tag(name = "Gemini (raw)",
         description = """
-                Vertex AI Gemini 를 **탄소/녹아내림 로직 없이** 바로 호출하는 테스트 엔드포인트.
+                Vertex AI Gemini 를 **탄소/녹아내림 로직 없이** 바로 호출하는 프롬프트 엔지니어링 전용 엔드포인트.
 
-                프로덕션 채팅 기능은 `/api/conversations/*` 를 사용. 이 엔드포인트는 SDK 연동 검증·데모 용도로만 유지.
+                프로덕션 채팅 기능은 `/api/conversations/*` 를 사용. 이 엔드포인트는 SDK 연동 검증·페르소나 튜닝 용도.
                 **응답에 탄소 누적이 반영되지 않으므로** 탄소 모니터링 기획과는 별개.
+
+                환경변수 `GEMINI_RAW_PUBLIC=true` 인 경우 **인증 없이도** 호출 가능 (해커톤 기간 한정).
                 """)
 public class GeminiController {
 
     private final GeminiService geminiService;
+    private final PromptTemplateService promptTemplateService;
 
-    public GeminiController(GeminiService geminiService) {
+    public GeminiController(GeminiService geminiService, PromptTemplateService promptTemplateService) {
         this.geminiService = geminiService;
+        this.promptTemplateService = promptTemplateService;
     }
 
     @PostMapping("/generate")
@@ -39,6 +44,10 @@ public class GeminiController {
             summary = "단발성 Gemini 호출 (탄소 추적 없음)",
             description = """
                     단일 prompt 를 Gemini 모델에 전달하고 응답 텍스트만 반환. 대화 이력·탄소 누적·입력 자르기 모두 없음.
+
+                    **system prompt 규칙**:
+                    - 요청 body 에 `systemPrompt` 가 있으면 그 값을 그대로 사용 (빈 문자열 전달 시 시스템 프롬프트 없이 호출).
+                    - 필드가 아예 없으면(`null`) 현재 active 템플릿 (`chat.prompt.active-template`, 기본 `polar-bear`) 을 자동 적용.
 
                     프론트에서는 이 엔드포인트 대신 **`POST /api/conversations/{id}/messages`** 를 사용해야 한다.
                     """
@@ -52,25 +61,39 @@ public class GeminiController {
                             examples = @ExampleObject(value = "{\"response\":\"Pong, Pong, Pong\"}")
                     )
             ),
-            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "401", description = "인증 실패 (GEMINI_RAW_PUBLIC=false 인 경우)"),
             @ApiResponse(responseCode = "500", description = "Gemini API 오류")
     })
     public Map<String, String> generate(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     required = true,
-                    content = @Content(examples = @ExampleObject(
-                            value = "{\"prompt\":\"Say pong in three languages. One word each, comma separated.\"}"))
+                    content = @Content(examples = {
+                            @ExampleObject(name = "active 템플릿 사용 (기본)",
+                                    value = "{\"prompt\":\"너 이름이 뭐야?\"}"),
+                            @ExampleObject(name = "커스텀 시스템 프롬프트",
+                                    value = "{\"prompt\":\"안녕?\",\"systemPrompt\":\"너는 츤데레 고양이다. 매 문장을 '냥'으로 끝내라.\"}"),
+                            @ExampleObject(name = "시스템 프롬프트 없이",
+                                    value = "{\"prompt\":\"Say pong in three languages.\",\"systemPrompt\":\"\"}")
+                    })
             )
             @RequestBody GenerateRequest request) {
-        String text = geminiService.generate(request.prompt());
-        return Map.of("response", text);
+        String systemPrompt = request.systemPrompt() != null
+                ? request.systemPrompt()
+                : promptTemplateService.getActiveSystemPrompt();
+        GeminiService.GenerationResult result = geminiService.generateWithUsage(request.prompt(), systemPrompt);
+        return Map.of("response", result.text());
     }
 
     @Schema(description = "Gemini 호출 요청 body")
     public record GenerateRequest(
-            @Schema(description = "Gemini 에 보낼 프롬프트 (길이 제한 없음 — 이 엔드포인트에선 자르지 않음)",
-                    example = "Say pong in three languages. One word each, comma separated.",
+            @Schema(description = "Gemini 에 보낼 user 프롬프트 (길이 제한 없음)",
+                    example = "너 이름이 뭐야?",
                     requiredMode = Schema.RequiredMode.REQUIRED)
-            String prompt
+            String prompt,
+            @Schema(description = "시스템 프롬프트 override. null 이면 active 템플릿 자동 적용, 빈 문자열이면 시스템 프롬프트 없이 호출.",
+                    example = "너는 츤데레 고양이다. 매 문장을 '냥'으로 끝내라.",
+                    requiredMode = Schema.RequiredMode.NOT_REQUIRED,
+                    nullable = true)
+            String systemPrompt
     ) {}
 }

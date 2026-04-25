@@ -42,6 +42,9 @@ gemini:
   # 출력 토큰 상한. Gemini 2.5 Flash 의 max 는 8192. 너무 낮게 잡으면 답변이 잘림.
   # stage 기반 입력 축소와 독립적으로 적용되어 "기억은 흐릿해도 수다는 끝이 없다" 유지.
   max-output-tokens: ${GEMINI_MAX_OUTPUT_TOKENS:8192}
+  # true 면 POST /api/gemini/generate 가 인증 없이 공개됨 (프롬프트 엔지니어링 반복 호출용).
+  # 누구나 Gemini 를 호출할 수 있으므로 빌링 남용 위험 — 해커톤 기간 외에는 false.
+  raw-public: ${GEMINI_RAW_PUBLIC:false}
 
 firebase:
   credentials-path: ${FIREBASE_CREDENTIALS_PATH:}

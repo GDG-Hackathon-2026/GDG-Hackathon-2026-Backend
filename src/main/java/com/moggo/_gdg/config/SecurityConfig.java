@@ -3,9 +3,13 @@ package com.moggo._gdg.config;
 import com.moggo._gdg.security.DevAuthFilter;
 import com.moggo._gdg.security.FirebaseTokenFilter;
 import com.moggo._gdg.security.JsonAuthEntryPoint;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -15,6 +19,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     private static final String[] PUBLIC_PATHS = {
             "/actuator/**",
@@ -29,7 +35,8 @@ public class SecurityConfig {
     SecurityFilterChain filterChain(HttpSecurity http,
                                     ObjectProvider<FirebaseTokenFilter> firebaseFilterProvider,
                                     ObjectProvider<DevAuthFilter> devAuthFilterProvider,
-                                    JsonAuthEntryPoint jsonAuthEntryPoint) throws Exception {
+                                    JsonAuthEntryPoint jsonAuthEntryPoint,
+                                    @Value("${gemini.raw-public:false}") boolean geminiRawPublic) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(httpBasic -> httpBasic.disable())
@@ -41,11 +48,16 @@ public class SecurityConfig {
                         .authenticationEntryPoint(jsonAuthEntryPoint)
                         .accessDeniedHandler(jsonAuthEntryPoint)
                 )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(PUBLIC_PATHS).permitAll()
-                        .anyRequest().authenticated()
-                );
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                    auth.requestMatchers(PUBLIC_PATHS).permitAll();
+                    if (geminiRawPublic) {
+                        log.warn("gemini.raw-public=true — POST /api/gemini/generate 가 인증 없이 공개됨. "
+                                + "프롬프트 엔지니어링 전용. 해커톤 종료 후 반드시 끄세요.");
+                        auth.requestMatchers(HttpMethod.POST, "/api/gemini/generate").permitAll();
+                    }
+                    auth.anyRequest().authenticated();
+                });
 
         FirebaseTokenFilter firebaseFilter = firebaseFilterProvider.getIfAvailable();
         if (firebaseFilter != null) {

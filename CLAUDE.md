@@ -39,7 +39,7 @@
 - `GET /api/conversations/{id}` — 대화 + 전체 메시지
 - `POST /api/conversations/{id}/messages` — Gemini 호출 + 탄소 누적 + 녹아내림 단계 반영
 - `GET /api/me` — 내 uid / 누적 탄소 / stage / maxInputTokens / meltingPercent
-- `POST /api/gemini/generate` — raw Gemini (시스템 프롬프트 없음, 테스트용)
+- `POST /api/gemini/generate` — raw Gemini (탄소/녹아내림 없음). body 의 `systemPrompt` 로 override 가능, 없으면 현재 active 템플릿 자동 적용. `GEMINI_RAW_PUBLIC=true` 면 인증 없이 호출 가능 (프롬프트 엔지니어링 반복용)
 
 ## 4. 인증 · 환경변수 게이트
 
@@ -47,8 +47,9 @@
 |------|------|
 | `Authorization: Bearer <Firebase ID token>` | 프로덕션 경로. FirebaseTokenFilter 가 verifyIdToken 후 uid principal 세팅 |
 | `X-Dev-Uid: <임의>` | **dev 전용 우회**. `DEV_AUTH_BYPASS=true` 일 때만 필터 빈 등록 + OpenAPI 노출. 지금 EC2 에선 활성. 해커톤 이후 반드시 false. |
+| `GEMINI_RAW_PUBLIC=true` | **프롬프트 엔지니어링 전용 공개**. `POST /api/gemini/generate` 만 인증 없이 호출 가능. 빌링 남용 위험 — 반복 실험 끝나면 반드시 false. |
 
-기본 `/api/ping` 외 전부 인증 필수. 인증 실패는 `ErrorResponse` JSON 포맷 (`code=AUTH`).
+기본 `/api/ping` 외 전부 인증 필수 (`GEMINI_RAW_PUBLIC=true` 면 `POST /api/gemini/generate` 도 예외). 인증 실패는 `ErrorResponse` JSON 포맷 (`code=AUTH`).
 
 ## 5. 탄소 · 녹아내림 정책 (`CarbonPolicy`)
 
@@ -102,6 +103,7 @@
 |------|------|------|
 | Windows `curl -d '{한글}'` | 서버 `Invalid UTF-8 start byte 0xba` → 400 | ASCII 로 테스트하거나 파일로 `-d @file.json` |
 | `DEV_AUTH_BYPASS=true` 프로덕션 유출 | 누구나 임의 uid 행세 가능 | 해커톤 종료 후 `.env` 에서 제거·재배포 |
+| `GEMINI_RAW_PUBLIC=true` 방치 | 누구나 Gemini 호출 가능 → 빌링 폭탄 위험 | 프롬프트 엔지니어링 세션 끝나면 즉시 false 로 되돌리고 재배포 |
 | SA key 를 리포에 저장 | bot 이 분 단위로 스캔해서 오남용 | `.gitignore` 의 `gdg-hackathon-*.json`, `*-sa.json`, `gcp-*.json` 패턴 유지 |
 | Gemini billing 끊김 | 502 `code=GEMINI_UPSTREAM` | https://console.developers.google.com/billing/enable?project=gdg-hackathon-494307 |
 | 프론트 Firebase 프로젝트 불일치 | 토큰 aud mismatch → 401 | 반드시 `gdg-hackathon-494307` 프로젝트의 Web 앱 config 사용 |
