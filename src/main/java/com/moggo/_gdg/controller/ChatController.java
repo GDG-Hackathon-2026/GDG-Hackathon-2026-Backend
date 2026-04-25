@@ -21,7 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/conversations")
 @ConditionalOnExpression("'${gemini.project:}' != ''")
-@Tag(name = "Chat",
+@Tag(name = "01.Chat",
         description = """
                 LLM 채팅 도메인 — 대화 생성/목록/상세 + 메시지 전송 및 Gemini 호출.
 

@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/stats")
-@Tag(name = "Stats", description = "전체 사용자에 걸친 집계 통계. /impact 같은 글로벌 대시보드 용.")
+@Tag(name = "04.Stats", description = "전체 사용자에 걸친 집계 통계. /impact 같은 글로벌 대시보드 용.")
 public class StatsController {
 
     private final StatsService statsService;

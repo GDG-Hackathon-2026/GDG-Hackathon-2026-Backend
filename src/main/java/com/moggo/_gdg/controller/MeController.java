@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api")
-@Tag(name = "Me", description = "현재 Firebase 인증 사용자의 탄소 누적량 및 녹아내림 단계 조회")
+@Tag(name = "03.Me", description = "현재 Firebase 인증 사용자의 탄소 누적량 및 녹아내림 단계 조회")
 public class MeController {
 
     private final UserService userService;

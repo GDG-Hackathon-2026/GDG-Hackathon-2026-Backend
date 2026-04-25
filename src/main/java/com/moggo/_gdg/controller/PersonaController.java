@@ -17,7 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/personas")
-@Tag(name = "Persona", description = """
+@Tag(name = "02.Persona", description = """
         대화 생성 시 선택 가능한 북극곰 페르소나 목록.
 
         프론트는 이 응답을 그대로 드롭다운/카드 UI 로 렌더하고, 사용자가 고른 키를

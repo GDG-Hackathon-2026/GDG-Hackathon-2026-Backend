@@ -14,7 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-@Tag(name = "Ping", description = "인증 없이 호출 가능한 서버 기동/도달성 확인 엔드포인트")
+@Tag(name = "98.Ping", description = "인증 없이 호출 가능한 서버 기동/도달성 확인 엔드포인트")
 public class PingController {
 
     @GetMapping("/ping")
